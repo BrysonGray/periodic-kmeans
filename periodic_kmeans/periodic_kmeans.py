@@ -7,25 +7,52 @@ from pyclustering.utils.metric import distance_metric, type_metric
 
 from measures.periodicMeasure import PeriodicMeasure
 
+# This version of periodic_mean has an error in computation.
+# The fix is implemented in the new function below
+# def periodic_mean(points, period=360):
+#     period_2 = period/2
+#     if max(points) - min(points) > period_2:
+#         _points = np.array([0 if x > period_2 else 1 for x in points]).reshape(-1,1)
+#         n_left =_points.sum()
+#         n_right = len(points) - n_left
+#         if n_left >0:
+#             mean_left = (points * _points).sum()/n_left
+#         else:
+#             mean_left =0
+#         if n_right >0:
+#             mean_right = (points * (1-_points)).sum() / n_right
+#         else:
+#             mean_right = 0
+#         _mean = (mean_left*n_left+mean_right*n_right+n_left*period)/(n_left+n_right)
+#         return _mean % period
+#     else:
+#         return points.mean(axis=0)
 
 def periodic_mean(points, period=360):
-    period_2 = period/2
-    if max(points) - min(points) > period_2:
-        _points = np.array([0 if x > period_2 else 1 for x in points]).reshape(-1,1)
-        n_left =_points.sum()
-        n_right = len(points) - n_left
-        if n_left >0:
-            mean_left = (points * _points).sum()/n_left
+
+    points = points.squeeze()
+
+    half_period = period/2
+    is_left = np.array([0 if x > half_period else 1 for x in points])
+    
+    n_left = is_left.sum()
+    n_right = len(points) - n_left
+
+    if n_left > 0 and n_right > 0:
+
+        mean_left = (points * is_left).sum() / n_left
+        mean_right = (points * (1-is_left)).sum() / n_right
+
+        if mean_right - mean_left <= period/2:
+            mean = (n_left*mean_left + n_right*mean_right)/len(points)
         else:
-            mean_left =0
-        if n_right >0:
-            mean_right = (points * (1-_points)).sum() / n_right
-        else:
-            mean_right = 0
-        _mean = (mean_left*n_left+mean_right*n_right+n_left*period)/(n_left+n_right)
-        return _mean % period
+            mean = (n_left*(mean_left + period) + n_right*mean_right)/len(points) % period
+    
     else:
-        return points.mean(axis=0)
+        mean = points.sum()/len(points)
+    
+    return mean
+
 
 def _periodic_update_centers(self):
     dimension = self._kmeans__pointer_data.shape[1]
